@@ -1,35 +1,72 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LandingPage from './pages/LandingPage';
+import DashboardLayout from './components/Layout/DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Placeholder components for dashboard views
+const CEODashboard = () => <div className="p-4"><h1>CEO Dashboard</h1><p>Welcome, CEO. Here is your overview.</p></div>;
+const AODashboard = () => <div className="p-4"><h1>AO Dashboard</h1><p>Welcome, AO. Manage your ranges here.</p></div>;
+const OADashboard = () => <div className="p-4"><h1>OA Dashboard</h1><p>Welcome, OA. Here are your assigned tasks.</p></div>;
+
+// Placeholder components for other routes
+
+const ClientList = () => <div className="p-4"><h1>Client Worklist</h1></div>;
+const ImportPage = () => <div className="p-4"><h1>Import Data</h1></div>;
+
+const AppRoutes = () => {
+  const { isAuthenticated, user } = useAuth();
+
+  // Helper to redirect based on role
+  const getDashboardRoute = () => {
+    if (!user) return '/login';
+    if (user.user_role === 'CEO') return '/dashboard/ceo';
+    if (user.user_role === 'AO') return '/dashboard/ao';
+    if (user.user_role === 'OA') return '/dashboard/oa';
+    return '/dashboard';
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <Routes>
+      {/* Public Route: Landing Page */}
+      <Route path="/" element={
+        isAuthenticated ? <Navigate to={getDashboardRoute()} replace /> : <LandingPage />
+      } />
 
-export default App
+      <Route path="/login" element={
+        isAuthenticated ? <Navigate to={getDashboardRoute()} replace /> : <Login />
+      } />
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          {/* Nested Routes based on Layout */}
+          <Route path="ceo" element={<CEODashboard />} />
+          <Route path="ao" element={<AODashboard />} />
+          <Route path="oa" element={<OADashboard />} />
+
+          {/* Common Protected Routes */}
+          <Route path="clients" element={<ClientList />} />
+          <Route path="import" element={<ImportPage />} />
+        </Route>
+      </Route>
+
+      {/* Catch all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+const App = () => {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
+  );
+};
+
+export default App;

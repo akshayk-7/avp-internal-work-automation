@@ -15,14 +15,28 @@ const clientRoutes = require('./routes/client.routes');
 const importRoutes = require('./routes/import.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 
+const { limiter } = require('./middleware/security.middleware');
+const errorHandler = require('./middleware/error.middleware');
+const logger = require('./utils/logger');
+
 const app = express();
 
 // --- Middleware ---
 app.use(helmet()); // Security headers
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' })); // CORS configuration
-app.use(morgan('dev')); // Logging
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(limiter); // Rate limiting
+app.use(express.json({ limit: '10kb' })); // Parse JSON bodies with limit
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Logging request
+app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.url}`);
+    next();
+});
 
 // --- Routes ---
 app.use('/health', healthRoutes);
@@ -34,8 +48,11 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to the SaaS Backend API' });
+    res.send('API is running...');
 });
+
+// Error Handler
+app.use(errorHandler);
 
 // --- 404 Error Handling ---
 app.use((req, res, next) => {
